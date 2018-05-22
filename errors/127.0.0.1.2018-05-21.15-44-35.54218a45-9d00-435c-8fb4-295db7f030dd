@@ -1,0 +1,21 @@
+(dp1
+S'output'
+p2
+S"<type 'exceptions.AttributeError'> 'Table' object has no attribute 'user_id'"
+p3
+sS'layer'
+p4
+S'/home/gus/global-project-2018-1/web2py/applications/depaulapp/controllers/workscheduling.py'
+p5
+sS'code'
+p6
+S'<code object <module> at 0x7f0ff94b2bb0, file "/home/gus/global-project-2018-1/web2py/applications/depaulapp/controllers/workscheduling.py", line 1>'
+p7
+sS'snapshot'
+p8
+(dp9
+sS'traceback'
+p10
+S'Traceback (most recent call last):\n  File "/home/gus/global-project-2018-1/web2py/gluon/restricted.py", line 219, in restricted\n    exec(ccode, environment)\n  File "/home/gus/global-project-2018-1/web2py/applications/depaulapp/controllers/workscheduling.py", line 50, in <module>\n  File "/home/gus/global-project-2018-1/web2py/gluon/globals.py", line 419, in <lambda>\n    self._caller = lambda f: f()\n  File "/home/gus/global-project-2018-1/web2py/gluon/tools.py", line 3982, in f\n    return action(*a, **b)\n  File "/home/gus/global-project-2018-1/web2py/applications/depaulapp/controllers/workscheduling.py", line 32, in show_hours_student\n    thequery = (db.avaliabledh.user_id == auth.user.id)\nAttributeError: \'Table\' object has no attribute \'user_id\'\n'
+p11
+s.

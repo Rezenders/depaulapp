@@ -1,0 +1,21 @@
+(dp1
+S'output'
+p2
+S"<type 'exceptions.AttributeError'> 'DAL' object has no attribute 'avaliabledh'"
+p3
+sS'layer'
+p4
+S'/home/gus/global-project-2018-1/web2py/applications/depaulapp/controllers/workscheduling.py'
+p5
+sS'code'
+p6
+S'<code object <module> at 0x7f46d27ec130, file "/home/gus/global-project-2018-1/web2py/applications/depaulapp/controllers/workscheduling.py", line 1>'
+p7
+sS'snapshot'
+p8
+(dp9
+sS'traceback'
+p10
+S'Traceback (most recent call last):\n  File "/home/gus/global-project-2018-1/web2py/gluon/restricted.py", line 219, in restricted\n    exec(ccode, environment)\n  File "/home/gus/global-project-2018-1/web2py/applications/depaulapp/controllers/workscheduling.py", line 50, in <module>\n  File "/home/gus/global-project-2018-1/web2py/gluon/globals.py", line 419, in <lambda>\n    self._caller = lambda f: f()\n  File "/home/gus/global-project-2018-1/web2py/gluon/tools.py", line 3982, in f\n    return action(*a, **b)\n  File "/home/gus/global-project-2018-1/web2py/applications/depaulapp/controllers/workscheduling.py", line 3, in timereport\n    form = SQLFORM(db.avaliabledh).process()\n  File "/home/gus/global-project-2018-1/web2py/gluon/packages/dal/pydal/base.py", line 669, in __getattr__\n    return BasicStorage.__getattribute__(self, key)\nAttributeError: \'DAL\' object has no attribute \'avaliabledh\'\n'
+p11
+s.
