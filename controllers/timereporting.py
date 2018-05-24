@@ -1,3 +1,5 @@
+from datetime import date, datetime, timedelta
+
 @auth.requires_membership('Students')
 def ViewHours():
     thequery = (db.WorkWeek.user_id == auth.user.id) & (
@@ -54,7 +56,26 @@ def edit_view_hours():
 
 @auth.requires_membership('Students')
 def AddHours():
-    var = SQLFORM.factory(db.WorkWeek.Monday,
+    DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+    first_day = request.vars.startdate or date.today() - timedelta(days=date.today().weekday())
+    if isinstance(first_day, basestring):
+        first_day = datetime.strptime(first_day, '%Y-%m-%d').date()
+
+    # Check to make sure start date is a monday
+    if first_day.weekday() != 0:
+        first_day = date.today() - timedelta(days=date.today().weekday())
+    week_start_str = 'Week of %s' % first_day.strftime('%m/%d')
+    previous_week = first_day - timedelta(days=7)
+    next_week = first_day + timedelta(days=7)
+
+    labels = {}
+    for idx, day in enumerate(DAYS_OF_WEEK):
+        day_idx = day + '_Hours'
+        date_string = (first_day + timedelta(days=idx)).strftime('%m/%d')
+        labels[day_idx] = '%s - %s' % (day[:3], date_string)
+
+    form = SQLFORM.factory(
                           Field('Monday_Hours', 'double', default=0),
                           Field('Monday_Description', 'string'),
                           Field('Tuesday_Hours', 'double', default=0),
@@ -69,84 +90,90 @@ def AddHours():
                           Field('Saturday_Description', 'string'),
                           Field('Sunday_Hours', 'double', default=0),
                           Field('Sunday_Description', 'string'),
-                          )
-    md = 'Saturday'
-    if var.process().accepted:
-        import datetime
-        # db.WorkWeek.Sunday,
-        # timedelta(days=5)
-        # .weekday()
-        # md=var.vars.Monday+datetime.timedelta(days=5);
-        md = var.vars.Monday.weekday()
-        if md != 0:
-            response.flash = 'Invalid day'
-        else:
-            Day1 = var.vars.Monday
-            Day2 = var.vars.Monday + datetime.timedelta(days=1)
-            Day3 = var.vars.Monday + datetime.timedelta(days=2)
-            Day4 = var.vars.Monday + datetime.timedelta(days=3)
-            Day5 = var.vars.Monday + datetime.timedelta(days=4)
-            Day6 = var.vars.Monday + datetime.timedelta(days=5)
-            Day7 = var.vars.Monday + datetime.timedelta(days=6)
-            TotalHours = var.vars.Monday_Hours + var.vars.Tuesday_Hours + var.vars.Wednesday_Hours + \
-                var.vars.Thursday_Hours + var.vars.Friday_Hours + var.vars.Saturday_Hours + var.vars.Sunday_Hours
-            new_var = db.WorkWeek.insert(
-                Monday=Day1,
-                Sunday=Day7,
+                          labels=labels
+    )
+
+    previous_week_button = INPUT(_type='button', _value='Previous Week', _onclick='window.location=\'%s\';;return false' % URL('AddHours', vars={'startdate': previous_week}))
+    next_week_button = INPUT(_type='button', _value='Next Week', _onclick='window.location=\'%s\';;return false' % URL('AddHours', vars={'startdate': next_week}))
+
+    DAYS = [first_day + timedelta(days=n) for n in range(7)]
+
+    for idx, day in enumerate(DAYS_OF_WEEK):
+        current_shift = db.WorkShift(db.WorkShift.ShiftDay == DAYS[idx])
+        if current_shift:
+            hours = current_shift.WorkedTime
+            comment = current_shift.Description
+
+            setattr(form.vars, day + '_Hours', int(hours) if hours.is_integer() else hours)
+            setattr(form.vars, day + '_Description', comment)
+
+    if form.process().accepted:
+
+        total_hours = 0
+        for day in DAYS_OF_WEEK:
+            try:
+                hours = float(getattr(form.vars, day + '_Hours'))
+                total_hours += hours if hours > 0 else 0
+            except Exception:
+                # Field was blank, no hours to add
+                pass
+
+        existing_week = db.WorkShift(db.WorkShift.ShiftDay == DAYS[0])
+        if total_hours > 0 or existing_week is not None:
+            week = db.WorkWeek.update_or_insert(
+                db.WorkWeek.Monday == DAYS[0],
+                Monday=DAYS[0],
+                Sunday=DAYS[6],
                 user_id=auth.user.id,
-                Total_Hours=TotalHours)
-            weekid = new_var.id
-            db.WorkShift.insert(
-                ShiftDay=Day1,
-                WorkedTime=var.vars.Monday_Hours,
-                Description=var.vars.Monday_Description,
-                WorkWeek_id=weekid)
-            db.WorkShift.insert(
-                ShiftDay=Day2,
-                WorkedTime=var.vars.Tuesday_Hours,
-                Description=var.vars.Tuesday_Description,
-                WorkWeek_id=weekid)
-            db.WorkShift.insert(
-                ShiftDay=Day3,
-                WorkedTime=var.vars.Wednesday_Hours,
-                Description=var.vars.Wednesday_Description,
-                WorkWeek_id=weekid)
-            db.WorkShift.insert(
-                ShiftDay=Day4,
-                WorkedTime=var.vars.Thursday_Hours,
-                Description=var.vars.Thursday_Description,
-                WorkWeek_id=weekid)
-            db.WorkShift.insert(
-                ShiftDay=Day5,
-                WorkedTime=var.vars.Friday_Hours,
-                Description=var.vars.Friday_Description,
-                WorkWeek_id=weekid)
-            db.WorkShift.insert(
-                ShiftDay=Day6,
-                WorkedTime=var.vars.Saturday_Hours,
-                Description=var.vars.Saturday_Description,
-                WorkWeek_id=weekid)
-            db.WorkShift.insert(
-                ShiftDay=Day7,
-                WorkedTime=var.vars.Sunday_Hours,
-                Description=var.vars.Sunday_Description,
-                WorkWeek_id=weekid)
+                Total_Hours=total_hours)
+            if week:
+                weekid = week.id
+            else:
+                weekid = db.WorkWeek(db.WorkWeek.Monday == DAYS[0]).id
 
-            response.flash = 'Thanks for filling the form'
-        #year, month, day = (int(x) for x in md.split('-'))
-        #answer = datetime.date(year, month, day).weekday()
-    # id = db.client.insert(**db.client._filter_fields(form.vars))
-    # var.vars.client=id
-    #id = db.address.insert(**db.address._filter_fields(form.vars))
+            for idx, day in enumerate(DAYS_OF_WEEK):
+                curr_date = DAYS[idx]
+                try:
+                    hours = float(getattr(form.vars, day + '_Hours'))
+                    if hours < 0:
+                        hours = 0
+                except Exception:
+                    hours = 0
+                comment = getattr(form.vars, day + '_Description')
 
-    return dict(a=var, b=md)
+                old_row = db.WorkShift(db.WorkShift.ShiftDay == curr_date)
 
-@auth.requires_membership('Managers')
+                if old_row:
+                    old_hours = old_row.WorkedTime
+                    old_comment = old_row.Description
+
+                    if old_hours != hours or old_comment != comment:
+                        old_row.update_record(
+                            WorkedTime=hours,
+                            Description=comment,
+                            Last_Changed=datetime.now())
+
+                else:
+                    db.WorkShift.insert(
+                        ShiftDay=curr_date,
+                        WorkedTime=hours,
+                        Description=comment,
+                        WorkWeek_id=weekid,
+                        Last_Changed=datetime.now())
+
+            redirect(URL(c="timereporting",f="ViewHours"))
+        
+        else:
+            response.flash = T('No Hours Entered!')
+
+    return dict(form=form, week_start=week_start_str, next_week=next_week_button, previous_week=previous_week_button)
+
+@auth.requires(auth.has_membership('Managers') or auth.has_membership('Upper Managers'))
 def ViewStudentHours():
-    def week_update(form):
-        week_id = form.vars.id
-        return redirect(URL(c='email',f='send_hours', args=[ str(week_id), 'ViewStudentHours']))
+    return dict()
 
+@auth.requires(auth.has_membership('Managers') or auth.has_membership('Upper Managers'))
+def StudentHours():
     db.WorkWeek.Monday.writable = False
     db.WorkWeek.Sunday.writable = False
     db.WorkWeek.user_id.writable = False
@@ -158,6 +185,7 @@ def ViewStudentHours():
         db.WorkWeek.Sunday,
         db.WorkWeek.Total_Hours,
         db.WorkWeek.Approved_Status,
+        db.WorkWeek.Manager_Comment,
     ]
 
     fields_shift = [
@@ -165,10 +193,15 @@ def ViewStudentHours():
         db.WorkShift.WorkedTime,
         db.WorkShift.Description,
     ]
-    export_classes = dict(csv=True, json=False, html=False,
-                          tsv=False, xml=False, csv_with_hidden_cols=False                          ,tsv_with_hidden_cols=False)
+    export_classes = dict(csv=True, json=False, html=False, tsv=False, xml=False,csv_with_hidden_cols=False,tsv_with_hidden_cols=False)
 
-    links = [dict(header="", body = lambda row: approve_but(row)), dict(header="", body= lambda row: reject_but(row))]
+    links = [
+            dict(header="Send Email", body = lambda row: email_but(row)),
+            dict(header="Add Comments", body = lambda row: comments_but(row)),
+            dict(header="", body = lambda row: approve_but(row)), 
+            dict(header="", body= lambda row: reject_but(row)),
+            ]
+
     grid = SQLFORM.smartgrid(
             db.WorkWeek,
             linked_tables=['WorkShift'],
@@ -176,12 +209,26 @@ def ViewStudentHours():
             create = False,
             deletable = False,
             details = False,
-            onupdate = week_update,
             editable = False,
-            exportclasses=export_classes,
+            exportclasses=dict(WorkWeek=export_classes),
             links =dict(WorkWeek=links),
             )
     return dict(hours=grid)
+
+def email_but(row):
+    return BUTTON(IMG(_src=URL('static','images/email.png')),_onclick="jQuery.ajax('"+URL('email','send_hours', args=[row.id])+"');",_class='logos')
+
+def comments_but(row):
+    return BUTTON(IMG(_src=URL('static','images/comment.png')), _onclick="show_modal("+str(row.id)+")",_class='logos')
+
+#@auth.requires(auth.has_membership('Managers') or auth.has_membership('Upper Managers'))
+def add_comments():
+    week_id = long(request.args[0])
+    text = request.args[1].replace("_", " ")
+    week = db(db.WorkWeek.id == long(week_id)).select().first()
+    week.update_record(Manager_Comment=text)
+    
+    return 'web2py_component("%s","hourform");' % URL(c='timereporting', f='StudentHours.load')
 
 def approve_but(row):
     week = db(db.WorkWeek.id == row.id).select(db.WorkWeek.ALL).first()
@@ -189,7 +236,7 @@ def approve_but(row):
     if week.Approved_Status == 'Approved':
         ret_aux = 'active'
 
-    return A('Approve',_class='button btn btn-sm btn-success ' + ret_aux, _href=URL(c='timereporting', f='approve', args=[week.id]))
+    return BUTTON('Approve',_name=week.id,_class='button btn btn-sm btn-success ' + ret_aux, _onclick="ajax('%s',[],':eval')" % URL(c='timereporting', f='approve', args=[week.id]))
 
 def approve():
     week_id = request.args[0]
@@ -201,7 +248,7 @@ def approve():
 
     week.update_record(Approved_Status=new_status)
 
-    return redirect(URL(c='timereporting', f='ViewStudentHours'))
+    return 'web2py_component("%s","hourform");' % URL(c='timereporting', f='StudentHours.load')
 
 def reject_but(row):
     week = db(db.WorkWeek.id == row.id).select(db.WorkWeek.ALL).first()
@@ -209,7 +256,7 @@ def reject_but(row):
     if week.Approved_Status == 'Rejected':
         ret_aux = 'active'
 
-    return A('Reject',_class='button btn btn-sm btn-danger ' + ret_aux, _href=URL(c='timereporting', f='reject', args=[week.id]))
+    return BUTTON('Reject',_class='button btn btn-sm btn-danger ' + ret_aux, _onclick="ajax('%s',[],':eval')"%URL(c='timereporting', f='reject', args=[week.id]))
 
 def reject():
     week_id = request.args[0]
@@ -221,5 +268,5 @@ def reject():
 
     week.update_record(Approved_Status=new_status)
 
-    return redirect(URL(c='timereporting', f='ViewStudentHours'))
+    return 'web2py_component("%s","hourform");' % URL(c='timereporting', f='StudentHours.load')
 
